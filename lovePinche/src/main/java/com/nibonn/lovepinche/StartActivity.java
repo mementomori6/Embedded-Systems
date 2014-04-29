@@ -14,10 +14,9 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.nibonn.model.User;
+import com.nibonn.util.HttpUtils;
 
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.IOException;
 import java.util.List;
 
 
@@ -27,9 +26,9 @@ public class StartActivity extends ActionBarActivity {
     private EditText pwLoginView;
 
     private Handler handler;
-    private final int LOGIN_SUCCESS = 0;
-    private final int LOGIN_FAIL = 1;
-    private final int NETWORK_ERROR = 2;
+    private static final int LOGIN_SUCCESS = 0;
+    private static final int LOGIN_FAIL = 1;
+    private static final int NETWORK_ERROR = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,40 +109,8 @@ public class StartActivity extends ActionBarActivity {
     }
 
     private void login(String un, String pw) {
-        HttpURLConnection conn;
         try {
-            conn = (HttpURLConnection) new URL(getString(R.string.login_url)).openConnection();
-            conn.setRequestMethod("POST");
-        } catch (IOException e) {
-            handler.sendEmptyMessage(NETWORK_ERROR);
-            e.printStackTrace();
-            return;
-        }
-        conn.setDoOutput(true);
-        conn.setReadTimeout(3000);
-        BufferedReader in = null;
-        OutputStream out = null;
-        final String CHARSET = getString(R.string.charset);
-
-        try {
-            out = conn.getOutputStream();
-            out.write(String.format("username=%s&password=%s", un, pw).getBytes(CHARSET));
-        } catch (IOException e) {
-            e.printStackTrace();
-            handler.sendEmptyMessage(NETWORK_ERROR);
-            return;
-        } finally {
-            if (out != null) {
-                try {
-                    out.close();
-                } catch (IOException e) {
-                }
-            }
-        }
-
-        try {
-            in = new BufferedReader(new InputStreamReader(conn.getInputStream(), CHARSET));
-            String res = in.readLine();
+            String res = HttpUtils.post(getString(R.string.login_url), String.format("username=%s&password=%s", un, pw));
             if (res.equals("0")) {
                 handler.sendEmptyMessage(LOGIN_FAIL);
                 return;
@@ -170,13 +137,6 @@ public class StartActivity extends ActionBarActivity {
             e.printStackTrace();
             handler.sendEmptyMessage(NETWORK_ERROR);
             return;
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException e) {
-                }
-            }
         }
     }
 }
