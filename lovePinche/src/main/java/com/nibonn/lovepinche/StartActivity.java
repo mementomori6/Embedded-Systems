@@ -1,13 +1,14 @@
 package com.nibonn.lovepinche;
 
 import android.content.Intent;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
-import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.view.animation.AnimationUtils;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -33,6 +34,7 @@ public class StartActivity extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.start);
         handler = new Handler() {
             @Override
@@ -48,6 +50,9 @@ public class StartActivity extends ActionBarActivity {
                         break;
                     case NETWORK_ERROR:
                         Toast.makeText(StartActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
+                        // TODO delete test
+                        intent = new Intent(StartActivity.this, MainActivity.class);
+                        startActivity(intent);
                     default:
                 }
             }

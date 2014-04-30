@@ -1,20 +1,61 @@
 package com.nibonn.lovepinche;
 
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.support.v7.app.ActionBarActivity;
+import android.view.*;
+import android.widget.ImageView;
+import android.widget.TabHost;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
 public class MainActivity extends ActionBarActivity {
 
+    private TabHost.TabSpec findCarTab;
+    private TabHost.TabSpec recordTab;
+    private TabHost.TabSpec settingTab;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.main);
         Bundle data = getIntent().getExtras();
-        Toast.makeText(this, data.getString("phonenumber"), Toast.LENGTH_SHORT).show();
+
+        TabHost tabHost = (TabHost) findViewById(android.R.id.tabhost);
+        tabHost.setup();
+
+        View indicator = LayoutInflater.from(this).inflate(R.layout.tab_layout, null);
+        ImageView tabIcon = (ImageView) indicator.findViewById(R.id.tab_icon);
+        tabIcon.setImageResource(R.drawable.find);
+        TextView tabName = (TextView) indicator.findViewById(R.id.tab_name);
+        tabName.setText("我要拼车");
+
+        findCarTab = tabHost.newTabSpec("scroll_find_car");
+        findCarTab.setIndicator(indicator);
+        findCarTab.setContent(R.id.find_car_tab);
+        tabHost.addTab(findCarTab);
+
+        indicator = LayoutInflater.from(this).inflate(R.layout.tab_layout, null);
+        tabIcon = (ImageView) indicator.findViewById(R.id.tab_icon);
+        tabIcon.setImageResource(R.drawable.record);
+        tabName = (TextView) indicator.findViewById(R.id.tab_name);
+        tabName.setText("拼车记录");
+        recordTab = tabHost.newTabSpec("record");
+        recordTab.setIndicator(indicator);
+        recordTab.setContent(R.id.record_tab);
+        tabHost.addTab(recordTab);
+
+        indicator = LayoutInflater.from(this).inflate(R.layout.tab_layout, null);
+        tabIcon = (ImageView) indicator.findViewById(R.id.tab_icon);
+        tabIcon.setImageResource(R.drawable.setting);
+        tabName = (TextView) indicator.findViewById(R.id.tab_name);
+        tabName.setText("设置");
+        settingTab = tabHost.newTabSpec("setting");
+        settingTab.setIndicator(indicator);
+        settingTab.setContent(R.id.setting_tab);
+        tabHost.addTab(settingTab);
+
     }
 
 
@@ -38,4 +79,7 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    public void onClick(View v) {
+        Toast.makeText(this, "clicked", Toast.LENGTH_SHORT).show();
+    }
 }

@@ -1,12 +1,13 @@
 package com.nibonn.lovepinche;
 
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
-import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.widget.EditText;
 import android.widget.Toast;
 import com.nibonn.util.HttpUtils;
@@ -28,10 +29,12 @@ public class SignUpActivity extends ActionBarActivity {
     private static final int DUP_USERNAME = 1;
     private static final int VALID_USERNAME = 2;
     private static final int SIGN_UP_SUCCESS = 3;
+    private static final int UNDEFINED_ERROR = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.sign_up);
         unSignUpView = (EditText) findViewById(R.id.unSignUpView);
         pwSignUpView = (EditText) findViewById(R.id.pwSignUpView);
@@ -57,6 +60,7 @@ public class SignUpActivity extends ActionBarActivity {
                         finish();
                         break;
                     default:
+                        Toast.makeText(SignUpActivity.this, "undefined error occurred. please try again.", Toast.LENGTH_SHORT).show();
                 }
             }
         };
@@ -87,6 +91,7 @@ public class SignUpActivity extends ActionBarActivity {
         final String un = unSignUpView.getText().toString();
         switch (v.getId()) {
             case R.id.unCheckSignUpBtn:
+                Toast.makeText(this, "connecting...", Toast.LENGTH_SHORT).show();
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -103,6 +108,7 @@ public class SignUpActivity extends ActionBarActivity {
                 final String realname = trueNameView.getText().toString();
                 final String idcard = idNumView.getText().toString();
                 final String phonenum = phoneNumView.getText().toString();
+                Toast.makeText(this, "connecting...", Toast.LENGTH_SHORT).show();
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -121,7 +127,7 @@ public class SignUpActivity extends ActionBarActivity {
     private boolean isValidUsername(String un) {
         try {
             String res = HttpUtils.post(getString(R.string.check_username_url), String.format("username=%s", un));
-            if (res.equals("1")) {
+            if (res.equals("0")) {
                 handler.sendEmptyMessage(VALID_USERNAME);
                 return true;
             } else {
@@ -139,10 +145,14 @@ public class SignUpActivity extends ActionBarActivity {
         if (!isValidUsername(un)) {
             return;
         }
-        // TODO sign up
         try {
             String res = HttpUtils.post(getString(R.string.sign_up_url),
                     String.format("username=%s&password=%s&realname=%s&idcard=%s&phonenumber=%s", un, pw, realname, id, phone));
+            if (res.startsWith("[\"") && res.endsWith("\"]")) {
+                handler.sendEmptyMessage(SIGN_UP_SUCCESS);
+            } else {
+                handler.sendEmptyMessage(UNDEFINED_ERROR);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             handler.sendEmptyMessage(NETWORK_ERROR);
