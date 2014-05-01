@@ -17,12 +17,14 @@ import com.google.gson.reflect.TypeToken;
 import com.nibonn.model.MatchResult;
 import com.nibonn.model.PincheRecord;
 import com.nibonn.model.User;
+import com.nibonn.model.UserMessage;
 import com.nibonn.util.HttpUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -41,6 +43,9 @@ public class MainActivity extends ActionBarActivity {
     private static final int CHANGE_PW_SUCCESS = 2;
     private static final int CHANGE_PW_FAIL = 3;
     private static final int MATCH_SUCCESS = 4;
+    private static final int SEND_MSG_SUCCESS = 5;
+    private static final int SEND_MSG_FAIL = 6;
+    private static final int NEW_MESSAGE = 7;
 
     private TabHost tabHost;
     private TabHost.TabSpec findCarTab;
@@ -51,6 +56,8 @@ public class MainActivity extends ActionBarActivity {
     private TabHost.TabSpec[] currentTab;
     private LinearLayout recordLayout;
     private LinearLayout frequentAddressLayout;
+
+    private TextView userTitle;
 
     private EditText startAddressView;
     private EditText arriveAddressView;
@@ -63,13 +70,18 @@ public class MainActivity extends ActionBarActivity {
 
     private TextView chatTitle;
     private TextView chatContent;
+    private EditText toSendMsgView;
 
     private User self;
+    private String otherId;
     private SQLiteDatabase db;
     private Handler handler;
     private Map<View, PincheRecord> records;
+    private Map<String, List<UserMessage>> messages;
     private int frequentAddressEntrance;
     private int requireAddress;
+    private SimpleDateFormat dateFormat;
+    private ExecutorService pool;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,14 +89,20 @@ public class MainActivity extends ActionBarActivity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.main);
         self = new User(getIntent().getExtras());
+        userTitle = (TextView) findViewById(R.id.user_title);
+        userTitle.setText("Hi//" + self.getUsername());
         initHandler();
         initDB();
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         records = new HashMap<View, PincheRecord>();
+        messages = new HashMap<String, List<UserMessage>>();
+        pool = Executors.newCachedThreadPool();
         initTabs();
         initRecordLayout();
         initFrequentAddressLayout();
         findNeededView();
         resetFindCar();
+        startReceiveMsg();
     }
 
 
@@ -132,6 +150,7 @@ public class MainActivity extends ActionBarActivity {
                     default:
                         num = 1;
                 }
+                Toast.makeText(this, "connecting...", Toast.LENGTH_SHORT).show();
                 submitRequest(startAddr, arriveAddr, startDate, startTime, endDate, endTime, num);
                 break;
             case R.id.resetAllBtn:
@@ -156,7 +175,7 @@ public class MainActivity extends ActionBarActivity {
 
             // chat tab
             case R.id.sendMesBtn:
-                // TODO send message
+                sendMessage(toSendMsgView.getText().toString());
                 break;
             case R.id.returnChatBtn:
                 returnFromChat();
@@ -170,9 +189,11 @@ public class MainActivity extends ActionBarActivity {
                 finish();
                 break;
             case R.id.changeInformationBtn:
+                Toast.makeText(this, "connecting...", Toast.LENGTH_SHORT).show();
                 changeInformation();
                 break;
             case R.id.changePWBtn:
+                Toast.makeText(this, "connecting...", Toast.LENGTH_SHORT).show();
                 changePassword();
                 break;
 
@@ -213,9 +234,6 @@ public class MainActivity extends ActionBarActivity {
                 "arriveAddr VARCHAR(255) NOT NULL, startTime VARCHAR(31), endTime VARCHAR(31), otherUserId VARCHAR(15) , status INT )");
     }
 
-    private void insertDB(String query, String... args) {
-
-    }
 
     private void initTabs() {
         tabHost = (TabHost) findViewById(android.R.id.tabhost);
@@ -280,30 +298,34 @@ public class MainActivity extends ActionBarActivity {
         recordLayout = (LinearLayout) findViewById(R.id.record_tab);
         Cursor c = db.rawQuery("SELECT * FROM record", new String[0]);
         if (!c.moveToFirst()) {
+            c.close();
             return;
         }
-        while (c.moveToNext()) {
-            String otherUser = c.getString(c.getColumnIndex("otherUser"));
-            String startAddr = c.getString(c.getColumnIndex("startAddr"));
-            String arriveAddr = c.getString(c.getColumnIndex("arriveAddr"));
-            String startTime = c.getString(c.getColumnIndex("startTime"));
-            String endTime = c.getString(c.getColumnIndex("endTime"));
-            String otherUserId = c.getString(c.getColumnIndex("otherUserId"));
+        do {
             PincheRecord record = new PincheRecord();
-            record.setEndTime(endTime);
-            record.setArriveAddress(arriveAddr);
-            record.setStartTime(startTime);
-            record.setStartAddress(startAddr);
-            record.setOtherUser(otherUser);
-            record.setOtherUserId(otherUserId);
-            addRecord(record, 0);
-        }
-
+            record.setEndTime(c.getString(c.getColumnIndex("endTime")));
+            record.setArriveAddress(c.getString(c.getColumnIndex("arriveAddr")));
+            record.setStartTime(c.getString(c.getColumnIndex("startTime")));
+            record.setStartAddress(c.getString(c.getColumnIndex("startAddr")));
+            record.setOtherUser(c.getString(c.getColumnIndex("otherUser")));
+            record.setOtherUserId(c.getString(c.getColumnIndex("otherUserId")));
+            addRecord(record, c.getInt(c.getColumnIndex("status")), false);
+        } while (c.moveToNext());
+        c.close();
     }
 
     private void initFrequentAddressLayout() {
         requireAddress = NO_REQUIRE;
         frequentAddressLayout = (LinearLayout) findViewById(R.id.frequent_address_layout);
+        Cursor c = db.rawQuery("SELECT * FROM address", new String[0]);
+        if (!c.moveToFirst()) {
+            c.close();
+            return;
+        }
+        do {
+            addFrequentAddress(c.getString(0), false);
+        } while (c.moveToNext());
+        c.close();
     }
 
     private void initHandler() {
@@ -326,9 +348,16 @@ public class MainActivity extends ActionBarActivity {
                     case MATCH_SUCCESS:
                         Toast.makeText(MainActivity.this, "匹配成功", Toast.LENGTH_SHORT).show();
                         break;
+                    case SEND_MSG_FAIL:
+                        Toast.makeText(MainActivity.this, "发送信息失败", Toast.LENGTH_SHORT).show();
+                        break;
+                    case NEW_MESSAGE:
+                        Toast.makeText(MainActivity.this, "新消息", Toast.LENGTH_SHORT).show();
+                        break;
                     case NETWORK_ERROR:
                         Toast.makeText(MainActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
                         break;
+                    default:
                 }
             }
         };
@@ -346,9 +375,10 @@ public class MainActivity extends ActionBarActivity {
 
         chatTitle = (TextView) findViewById(R.id.chatTitleTextView);
         chatContent = (TextView) findViewById(R.id.chatContentTextView);
+        toSendMsgView = (EditText) findViewById(R.id.toSendMsgView);
     }
 
-    private void addRecord(PincheRecord pincheRecord, int status) {
+    private void addRecord(PincheRecord pincheRecord, int status, boolean addToDB) {
         View record = LayoutInflater.from(this).inflate(R.layout.record_layout, null);
         ((TextView) record.findViewById(R.id.routeTextView)).setText(pincheRecord.toString());
         TextView statusView = (TextView) record.findViewById(R.id.statusTextView);
@@ -369,19 +399,23 @@ public class MainActivity extends ActionBarActivity {
         }
         records.put(record, pincheRecord);
         recordLayout.addView(record);
-        db.execSQL("INSERT INTO record (otherUser , startAddr, arriveAddr, startTime, endTime, otherUserId) " +
-                        "VALUES ( ?, ?, ?, ?, ?, ? )",
-                new Object[]{pincheRecord.getOtherUser(), pincheRecord.getStartAddress(), pincheRecord.getArriveAddress(),
-                        pincheRecord.getStartTime(), pincheRecord.getEndTime(), pincheRecord.getOtherUserId()}
-        );
+        if (addToDB) {
+            db.execSQL("INSERT INTO record (otherUser , startAddr, arriveAddr, startTime, endTime, otherUserId) " +
+                            "VALUES ( ?, ?, ?, ?, ?, ? )",
+                    new Object[]{pincheRecord.getOtherUser(), pincheRecord.getStartAddress(), pincheRecord.getArriveAddress(),
+                            pincheRecord.getStartTime(), pincheRecord.getEndTime(), pincheRecord.getOtherUserId()}
+            );
+        }
     }
 
-    private void addFrequentAddress(String address) {
+    private void addFrequentAddress(String address, boolean addToDB) {
         View addressLayout = LayoutInflater.from(this).inflate(R.layout.address_layout, null);
         Button addressText = (Button) addressLayout.findViewById(R.id.frequentAddressBtn);
         addressText.setText(address);
         frequentAddressLayout.addView(addressLayout);
-        db.execSQL("INSERT INTO address VALUES ( ? )", new Object[]{address});
+        if (addToDB) {
+            db.execSQL("INSERT INTO address VALUES ( ? )", new Object[]{address});
+        }
     }
 
     private void resetFindCar() {
@@ -397,6 +431,11 @@ public class MainActivity extends ActionBarActivity {
     private void enterChatTab(PincheRecord record) {
         chatTitle.setText(String.format("正在和用户%s交流", record.getOtherUser()));
         chatContent.setText("");
+        otherId = record.getOtherUserId();
+        for (UserMessage um : messages.get(otherId)) {
+            chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
+        }
+        messages.get(otherId).clear();
         setCurrentTab(1, chatTab, 1);
     }
 
@@ -423,7 +462,7 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 final String newPhoneNum = view.getText().toString();
-                new Thread(new Runnable() {
+                pool.execute(new Runnable() {
                     @Override
                     public void run() {
                         try {
@@ -439,7 +478,7 @@ public class MainActivity extends ActionBarActivity {
                             handler.sendEmptyMessage(NETWORK_ERROR);
                         }
                     }
-                }).start();
+                });
             }
         });
         builder.setNegativeButton("取消", null);
@@ -456,7 +495,7 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 final String newPw = view.getText().toString();
-                new Thread(new Runnable() {
+                pool.execute(new Runnable() {
                     @Override
                     public void run() {
                         try {
@@ -472,7 +511,7 @@ public class MainActivity extends ActionBarActivity {
                             handler.sendEmptyMessage(NETWORK_ERROR);
                         }
                     }
-                }).start();
+                });
             }
         });
         builder.setNegativeButton("取消", null);
@@ -487,7 +526,7 @@ public class MainActivity extends ActionBarActivity {
         builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                addFrequentAddress(view.getText().toString());
+                addFrequentAddress(view.getText().toString(), true);
             }
         });
         builder.setNegativeButton("取消", null);
@@ -499,7 +538,7 @@ public class MainActivity extends ActionBarActivity {
                                final String endDate, final String endTime, final int man) {
         final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s %s&lasttime=%s %s",
                 startAddr, arriveAddr, self.getUserid(), man, startDate, startTime, endDate, endTime);
-        new Thread(new Runnable() {
+        pool.execute(new Runnable() {
             @Override
             public void run() {
                 if (findMatch(startAddr, arriveAddr, startDate, startTime, endDate, endTime, man)) {
@@ -514,7 +553,7 @@ public class MainActivity extends ActionBarActivity {
                     handler.sendEmptyMessage(NETWORK_ERROR);
                 }
             }
-        }).start();
+        });
     }
 
     private boolean findMatch(String startAddr, String arriveAddr,
@@ -535,11 +574,70 @@ public class MainActivity extends ActionBarActivity {
             }
             PincheRecord pincheRecord = new PincheRecord();
             pincheRecord.fromMatchResult(matchResults.get(0));
-            addRecord(pincheRecord, STATUS_SUCCESS);
+            addRecord(pincheRecord, STATUS_SUCCESS, true);
             return true;
         } catch (IOException e) {
             e.printStackTrace();
         }
         return false;
+    }
+
+    private void sendMessage(final String msg) {
+        final String date = dateFormat.format(new Date());
+        final String postData = String.format("srcid=%s&desid=%s&date=%s&message=%s", self.getUserid(), otherId, date, msg);
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String res = HttpUtils.post(getString(R.string.send_msg_url), postData);
+                    if (res.equals(msg)) {
+                        handler.sendEmptyMessage(SEND_MSG_SUCCESS);
+                        chatContent.append(String.format("我 %s\n\t%s\n\n", date, msg));
+                        toSendMsgView.setText("");
+                    } else {
+                        handler.sendEmptyMessage(SEND_MSG_FAIL);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    handler.sendEmptyMessage(NETWORK_ERROR);
+                }
+            }
+        });
+    }
+
+    private void startReceiveMsg() {
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                String postData = String.format("desid=%s", self.getUserid());
+                String charset = getString(R.string.charset);
+                String postUrl = getString(R.string.receive_url);
+                Gson gson = new Gson();
+                while (true) {
+                    try {
+                        String res = HttpUtils.post(postUrl, postData, 60000, charset);
+                        List<UserMessage> messages = gson.fromJson(res, new TypeToken<List<UserMessage>>() {
+                        }.getType());
+                        if (messages.size() <= 0) {
+                            Thread.sleep(60000);
+                            continue;
+                        }
+                        for (UserMessage um : messages) {
+                            List<UserMessage> msgList = MainActivity.this.messages.get(um.getSrcid());
+                            if (msgList == null) {
+                                msgList = new LinkedList<UserMessage>();
+                                MainActivity.this.messages.put(um.getSrcid(), msgList);
+                            }
+                            msgList.add(um);
+                        }
+                        handler.sendEmptyMessage(NEW_MESSAGE);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
     }
 }

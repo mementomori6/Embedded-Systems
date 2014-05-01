@@ -11,6 +11,8 @@
     <string name="change_info_url">http://59.78.16.33/ES/index.php/update</string>
     <string name="submit_url">http://59.78.16.33/ES/index.php/baidumap</string>
     <string name="match_url">http://59.78.16.33/ES/index.php/request</string>
+    <string name="receive_url">http://59.78.16.33/ES/index.php/sendmessage</string>
+    <string name="send_msg_url">http://59.78.16.33/ES/index.php/receivemessage</string>
     <string name="charset">UTF-8</string>
     <string name="title_activity_main">MainActivity</string>
 
