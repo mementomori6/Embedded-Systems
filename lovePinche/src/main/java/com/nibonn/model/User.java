@@ -1,5 +1,7 @@
 package com.nibonn.model;
 
+import android.os.Bundle;
+
 /**
  * Created by GuYifan on 2014/4/28.
  */
@@ -11,6 +13,18 @@ public class User {
     private String realname;
     private String idcard;
     private String phonenumber;
+
+    public User() {
+    }
+
+    public User(Bundle data) {
+        setUsername(data.getString("username"));
+        setPassword(data.getString("password"));
+        setRealname(data.getString("realname"));
+        setUserid(data.getString("userid"));
+        setPhonenumber(data.getString("phonenumber"));
+        setIdcard(data.getString("idcard"));
+    }
 
     public String getUserid() {
         return userid;

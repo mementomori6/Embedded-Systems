@@ -1,12 +1,27 @@
 package com.nibonn.lovepinche;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
+import android.text.InputType;
 import android.view.*;
 import android.widget.*;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.nibonn.model.MatchResult;
 import com.nibonn.model.PincheRecord;
+import com.nibonn.model.User;
+import com.nibonn.util.HttpUtils;
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -19,6 +34,13 @@ public class MainActivity extends ActionBarActivity {
     private static final int REQUIRE_START_ADDRESS = 0;
     private static final int REQUIRE_ARRIVE_ADDRESS = 1;
     private static final int NO_REQUIRE = 2;
+
+    private static final int NETWORK_ERROR = -1;
+    private static final int CHANGE_INFO_SUCCESS = 0;
+    private static final int CHANGE_INFO_FAIL = 1;
+    private static final int CHANGE_PW_SUCCESS = 2;
+    private static final int CHANGE_PW_FAIL = 3;
+    private static final int MATCH_SUCCESS = 4;
 
     private TabHost tabHost;
     private TabHost.TabSpec findCarTab;
@@ -42,6 +64,9 @@ public class MainActivity extends ActionBarActivity {
     private TextView chatTitle;
     private TextView chatContent;
 
+    private User self;
+    private SQLiteDatabase db;
+    private Handler handler;
     private Map<View, PincheRecord> records;
     private int frequentAddressEntrance;
     private int requireAddress;
@@ -51,7 +76,9 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.main);
-        Bundle userData = getIntent().getExtras();
+        self = new User(getIntent().getExtras());
+        initHandler();
+        initDB();
         records = new HashMap<View, PincheRecord>();
         initTabs();
         initRecordLayout();
@@ -85,7 +112,27 @@ public class MainActivity extends ActionBarActivity {
         switch (v.getId()) {
             // find car tab
             case R.id.submitBtn:
-                // TODO submit request
+                String startAddr = startAddressView.getText().toString();
+                String arriveAddr = arriveAddressView.getText().toString();
+                String startDate = startDateView.getText().toString();
+                String startTime = startTimeView.getText().toString();
+                String endDate = endDateView.getText().toString();
+                String endTime = endTimeView.getText().toString();
+                int num;
+                switch (manGroup.getCheckedRadioButtonId()) {
+                    case R.id.oneManRadioBtn:
+                        num = 1;
+                        break;
+                    case R.id.twoManRadioBtn:
+                        num = 2;
+                        break;
+                    case R.id.threeManRadioBtn:
+                        num = 3;
+                        break;
+                    default:
+                        num = 1;
+                }
+                submitRequest(startAddr, arriveAddr, startDate, startTime, endDate, endTime, num);
                 break;
             case R.id.resetAllBtn:
                 resetFindCar();
@@ -122,6 +169,12 @@ public class MainActivity extends ActionBarActivity {
             case R.id.exitSettingBtn:
                 finish();
                 break;
+            case R.id.changeInformationBtn:
+                changeInformation();
+                break;
+            case R.id.changePWBtn:
+                changePassword();
+                break;
 
             // frequent address tab
             case R.id.returnFrequentAddressBtn:
@@ -145,15 +198,28 @@ public class MainActivity extends ActionBarActivity {
                 }
                 returnFromFrequentAddress();
                 break;
+            case R.id.addFrequentAddressBtn:
+                showAddFrequentAddress();
+                break;
 
             default:
         }
     }
 
+    private void initDB() {
+        db = openOrCreateDatabase("pinche.db", Context.MODE_PRIVATE, null);
+        db.execSQL("CREATE TABLE IF NOT EXISTS address ( address VARCHAR(255) NOT NULL, PRIMARY KEY (address) )");
+        db.execSQL("CREATE TABLE IF NOT EXISTS record ( otherUser VARCHAR(63), startAddr VARCHAR(255) NOT NULL," +
+                "arriveAddr VARCHAR(255) NOT NULL, startTime VARCHAR(31), endTime VARCHAR(31), otherUserId VARCHAR(15) , status INT )");
+    }
+
+    private void insertDB(String query, String... args) {
+
+    }
+
     private void initTabs() {
         tabHost = (TabHost) findViewById(android.R.id.tabhost);
         tabHost.setup();
-
 
         View indicator = LayoutInflater.from(this).inflate(R.layout.tab_layout, null);
         ImageView tabIcon = (ImageView) indicator.findViewById(R.id.tab_icon);
@@ -212,19 +278,60 @@ public class MainActivity extends ActionBarActivity {
 
     private void initRecordLayout() {
         recordLayout = (LinearLayout) findViewById(R.id.record_tab);
-        addRecord("ing route", STATUS_ING);
-        addRecord("success route", STATUS_SUCCESS);
-        addRecord("fail route", STATUS_FAIL);
-        for (int i = 0; i < 15; ++i) {
-            addRecord("record " + i, STATUS_ING);
+        Cursor c = db.rawQuery("SELECT * FROM record", new String[0]);
+        if (!c.moveToFirst()) {
+            return;
         }
+        while (c.moveToNext()) {
+            String otherUser = c.getString(c.getColumnIndex("otherUser"));
+            String startAddr = c.getString(c.getColumnIndex("startAddr"));
+            String arriveAddr = c.getString(c.getColumnIndex("arriveAddr"));
+            String startTime = c.getString(c.getColumnIndex("startTime"));
+            String endTime = c.getString(c.getColumnIndex("endTime"));
+            String otherUserId = c.getString(c.getColumnIndex("otherUserId"));
+            PincheRecord record = new PincheRecord();
+            record.setEndTime(endTime);
+            record.setArriveAddress(arriveAddr);
+            record.setStartTime(startTime);
+            record.setStartAddress(startAddr);
+            record.setOtherUser(otherUser);
+            record.setOtherUserId(otherUserId);
+            addRecord(record, 0);
+        }
+
     }
 
     private void initFrequentAddressLayout() {
+        requireAddress = NO_REQUIRE;
         frequentAddressLayout = (LinearLayout) findViewById(R.id.frequent_address_layout);
-        addFrequentAddress("address1");
-        addFrequentAddress("address2");
-        addFrequentAddress("address3");
+    }
+
+    private void initHandler() {
+        handler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case CHANGE_INFO_SUCCESS:
+                        Toast.makeText(MainActivity.this, "修改信息成功", Toast.LENGTH_SHORT).show();
+                        break;
+                    case CHANGE_INFO_FAIL:
+                        Toast.makeText(MainActivity.this, "修改信息失败", Toast.LENGTH_SHORT).show();
+                        break;
+                    case CHANGE_PW_SUCCESS:
+                        Toast.makeText(MainActivity.this, "修改密码成功", Toast.LENGTH_SHORT).show();
+                        break;
+                    case CHANGE_PW_FAIL:
+                        Toast.makeText(MainActivity.this, "修改密码失败", Toast.LENGTH_SHORT).show();
+                        break;
+                    case MATCH_SUCCESS:
+                        Toast.makeText(MainActivity.this, "匹配成功", Toast.LENGTH_SHORT).show();
+                        break;
+                    case NETWORK_ERROR:
+                        Toast.makeText(MainActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
+                        break;
+                }
+            }
+        };
     }
 
     private void findNeededView() {
@@ -241,10 +348,9 @@ public class MainActivity extends ActionBarActivity {
         chatContent = (TextView) findViewById(R.id.chatContentTextView);
     }
 
-    // TODO format args
-    private void addRecord(String route, int status) {
+    private void addRecord(PincheRecord pincheRecord, int status) {
         View record = LayoutInflater.from(this).inflate(R.layout.record_layout, null);
-        ((TextView) record.findViewById(R.id.routeTextView)).setText(route);
+        ((TextView) record.findViewById(R.id.routeTextView)).setText(pincheRecord.toString());
         TextView statusView = (TextView) record.findViewById(R.id.statusTextView);
         switch (status) {
             case STATUS_ING:
@@ -253,20 +359,21 @@ public class MainActivity extends ActionBarActivity {
                 break;
             case STATUS_SUCCESS:
                 statusView.setBackgroundDrawable(getResources().getDrawable(R.drawable.status_success));
-                statusView.setText("匹配成功");
+                statusView.setText("已匹配");
                 break;
             case STATUS_FAIL:
                 statusView.setBackgroundDrawable(getResources().getDrawable(R.drawable.status_fail));
-                statusView.setText("匹配失败");
+                statusView.setText("已超时");
                 break;
             default:
         }
-        // TODO create record
-        PincheRecord pincheRecord = new PincheRecord();
-        pincheRecord.setOtherUser(route);
         records.put(record, pincheRecord);
         recordLayout.addView(record);
-        // TODO save to database
+        db.execSQL("INSERT INTO record (otherUser , startAddr, arriveAddr, startTime, endTime, otherUserId) " +
+                        "VALUES ( ?, ?, ?, ?, ?, ? )",
+                new Object[]{pincheRecord.getOtherUser(), pincheRecord.getStartAddress(), pincheRecord.getArriveAddress(),
+                        pincheRecord.getStartTime(), pincheRecord.getEndTime(), pincheRecord.getOtherUserId()}
+        );
     }
 
     private void addFrequentAddress(String address) {
@@ -274,7 +381,7 @@ public class MainActivity extends ActionBarActivity {
         Button addressText = (Button) addressLayout.findViewById(R.id.frequentAddressBtn);
         addressText.setText(address);
         frequentAddressLayout.addView(addressLayout);
-        // TODO save to database
+        db.execSQL("INSERT INTO address VALUES ( ? )", new Object[]{address});
     }
 
     private void resetFindCar() {
@@ -288,7 +395,7 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void enterChatTab(PincheRecord record) {
-        chatTitle.setText(String.format("正在与正在和用户%s交流", record.getOtherUser()));
+        chatTitle.setText(String.format("正在和用户%s交流", record.getOtherUser()));
         chatContent.setText("");
         setCurrentTab(1, chatTab, 1);
     }
@@ -305,5 +412,134 @@ public class MainActivity extends ActionBarActivity {
 
     private void returnFromFrequentAddress() {
         setCurrentTab(2, settingTab, frequentAddressEntrance);
+    }
+
+    private void changeInformation() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("手机号码");
+        final EditText view = new EditText(this);
+        builder.setView(view);
+        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                final String newPhoneNum = view.getText().toString();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            String res = HttpUtils.post(getString(R.string.change_info_url),
+                                    String.format("username=%s&password=%s&phonenumber=%s", self.getUsername(), self.getPassword(), newPhoneNum));
+                            if (res.equals("oknull")) {
+                                handler.sendEmptyMessage(CHANGE_INFO_SUCCESS);
+                            } else {
+                                handler.sendEmptyMessage(CHANGE_INFO_FAIL);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            handler.sendEmptyMessage(NETWORK_ERROR);
+                        }
+                    }
+                }).start();
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void changePassword() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("密码");
+        final EditText view = new EditText(this);
+        view.setInputType(InputType.TYPE_TEXT_VARIATION_PASSWORD | InputType.TYPE_CLASS_TEXT);
+        builder.setView(view);
+        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                final String newPw = view.getText().toString();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            String res = HttpUtils.post(getString(R.string.change_info_url),
+                                    String.format("username=%s&password=%s&phonenumber=%s", self.getUsername(), newPw, self.getPhonenumber()));
+                            if (res.equals("oknull")) {
+                                handler.sendEmptyMessage(CHANGE_PW_SUCCESS);
+                            } else {
+                                handler.sendEmptyMessage(CHANGE_PW_FAIL);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            handler.sendEmptyMessage(NETWORK_ERROR);
+                        }
+                    }
+                }).start();
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void showAddFrequentAddress() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("新地址");
+        final EditText view = new EditText(this);
+        builder.setView(view);
+        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                addFrequentAddress(view.getText().toString());
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void submitRequest(final String startAddr, final String arriveAddr,
+                               final String startDate, final String startTime,
+                               final String endDate, final String endTime, final int man) {
+        final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s %s&lasttime=%s %s",
+                startAddr, arriveAddr, self.getUserid(), man, startDate, startTime, endDate, endTime);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (findMatch(startAddr, arriveAddr, startDate, startTime, endDate, endTime, man)) {
+                    handler.sendEmptyMessage(MATCH_SUCCESS);
+                    return;
+                }
+                try {
+                    String res = HttpUtils.post(getString(R.string.submit_url), postData);
+                    // TODO
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    handler.sendEmptyMessage(NETWORK_ERROR);
+                }
+            }
+        }).start();
+    }
+
+    private boolean findMatch(String startAddr, String arriveAddr,
+                              String startDate, String startTime,
+                              String endDate, String endTime, int man) {
+        final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s %s&lasttime=%s %s",
+                startAddr, arriveAddr, self.getUserid(), man, startDate, startTime, endDate, endTime);
+        try {
+            String res = HttpUtils.post(getString(R.string.match_url), postData);
+            if (res.equals("0")) {
+                return false;
+            }
+            Gson gson = new Gson();
+            List<MatchResult> matchResults = gson.fromJson(res, new TypeToken<List<MatchResult>>() {
+            }.getType());
+            if (matchResults.size() >= 0) {
+                return false;
+            }
+            PincheRecord pincheRecord = new PincheRecord();
+            pincheRecord.fromMatchResult(matchResults.get(0));
+            addRecord(pincheRecord, STATUS_SUCCESS);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }

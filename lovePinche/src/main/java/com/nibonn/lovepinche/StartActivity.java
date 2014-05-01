@@ -52,6 +52,14 @@ public class StartActivity extends ActionBarActivity {
                         Toast.makeText(StartActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
                         // TODO delete test
                         intent = new Intent(StartActivity.this, MainActivity.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putString("username", "test");
+                        bundle.putString("password", "newpassword");
+                        bundle.putString("userid", "49");
+                        bundle.putString("realname", "haha");
+                        bundle.putString("phonenumber", "12345");
+                        bundle.putString("idcard", "324124");
+                        intent.putExtras(bundle);
                         startActivity(intent);
                     default:
                 }
@@ -61,8 +69,8 @@ public class StartActivity extends ActionBarActivity {
             @Override
             public void run() {
                 View splash = findViewById(R.id.splash);
-                splash.startAnimation(AnimationUtils.loadAnimation(StartActivity.this, R.anim.abc_slide_out_bottom));
-                findViewById(R.id.login_layout).startAnimation(AnimationUtils.loadAnimation(StartActivity.this, R.anim.abc_slide_in_top));
+                splash.startAnimation(AnimationUtils.makeOutAnimation(StartActivity.this, false));
+                findViewById(R.id.login_layout).startAnimation(AnimationUtils.makeInAnimation(StartActivity.this, false));
                 splash.setVisibility(View.GONE);
             }
         }, 2000);

@@ -1,7 +1,5 @@
 package com.nibonn.model;
 
-import java.math.BigDecimal;
-
 /**
  * Created by GuYifan on 2014/5/1.
  */
@@ -12,7 +10,15 @@ public class PincheRecord {
     private String arriveAddress;
     private String startTime;
     private String endTime;
-    private BigDecimal money;
+    private String otherUserId;
+
+    public String getOtherUserId() {
+        return otherUserId;
+    }
+
+    public void setOtherUserId(String otherUserId) {
+        this.otherUserId = otherUserId;
+    }
 
     public String getOtherUser() {
         return otherUser;
@@ -54,12 +60,12 @@ public class PincheRecord {
         this.endTime = endTime;
     }
 
-    public BigDecimal getMoney() {
-        return money;
-    }
-
-    public void setMoney(BigDecimal money) {
-        this.money = money;
+    public void fromMatchResult(MatchResult result) {
+        setOtherUserId(result.getUserid());
+        setStartAddress(result.getSrc());
+        setStartTime(result.getTime());
+        setArriveAddress(result.getDes());
+        setEndTime(result.getLasttime());
     }
 
     @Override
@@ -70,8 +76,7 @@ public class PincheRecord {
                 ", startAddress='" + startAddress + '\'' +
                 ", arriveAddress='" + arriveAddress + '\'' +
                 ", startTime='" + startTime + '\'' +
-                ", endTime='" + endTime + '\'' +
-                ", money=" + money +
+                ", endTime='" + endTime +
                 '}';
     }
 }
