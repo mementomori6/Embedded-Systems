@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout
+    android:id="@+id/record_layout"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <ImageButton
+        android:id="@+id/statusBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:layout_margin="10dp"
+        android:background="@drawable/status"
+        android:onClick="onClick"/>
+
+    <ImageButton
+        android:id="@+id/chatBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/statusBtn"
+        android:layout_alignTop="@+id/statusBtn"
+        android:layout_marginRight="10dp"
+        android:layout_toLeftOf="@+id/statusBtn"
+        android:background="@drawable/chat"
+        android:onClick="onClick"/>
+
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/chatBtn"
+        android:layout_alignTop="@+id/chatBtn"
+        android:layout_marginRight="10dp"
+        android:layout_toLeftOf="@+id/chatBtn"
+        android:gravity="center"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:text="status"/>
+
+    <TextView
+        android:id="@+id/routeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/statusTextView"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignTop="@+id/statusTextView"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_toLeftOf="@+id/statusTextView"
+        android:background="@drawable/label_bg_main"
+        android:gravity="center"
+        android:text="route"/>
+</RelativeLayout>
