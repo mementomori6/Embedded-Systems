@@ -50,17 +50,17 @@ public class StartActivity extends ActionBarActivity {
                         break;
                     case NETWORK_ERROR:
                         Toast.makeText(StartActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
-                        // TODO delete test
-                        intent = new Intent(StartActivity.this, MainActivity.class);
-                        Bundle bundle = new Bundle();
-                        bundle.putString("username", "test");
-                        bundle.putString("password", "newpassword");
-                        bundle.putString("userid", "49");
-                        bundle.putString("realname", "haha");
-                        bundle.putString("phonenumber", "12345");
-                        bundle.putString("idcard", "324124");
-                        intent.putExtras(bundle);
-                        startActivity(intent);
+//                        // TODO delete test
+//                        intent = new Intent(StartActivity.this, MainActivity.class);
+//                        Bundle bundle = new Bundle();
+//                        bundle.putString("username", "test");
+//                        bundle.putString("password", "newpassword");
+//                        bundle.putString("userid", "49");
+//                        bundle.putString("realname", "haha");
+//                        bundle.putString("phonenumber", "12345");
+//                        bundle.putString("idcard", "324124");
+//                        intent.putExtras(bundle);
+//                        startActivity(intent);
                     default:
                 }
             }

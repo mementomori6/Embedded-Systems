@@ -42,7 +42,9 @@ public class HttpUtils {
                 sb.append(line);
                 sb.append('\n');
             }
-            sb.deleteCharAt(sb.length() - 1);
+            if (sb.length() > 0) {
+                sb.deleteCharAt(sb.length() - 1);   // delete final \n
+            }
             return sb.toString();
         } finally {
             if (in != null) {

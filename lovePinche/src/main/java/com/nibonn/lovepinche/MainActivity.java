@@ -14,10 +14,7 @@ import android.view.*;
 import android.widget.*;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.nibonn.model.MatchResult;
-import com.nibonn.model.PincheRecord;
-import com.nibonn.model.User;
-import com.nibonn.model.UserMessage;
+import com.nibonn.model.*;
 import com.nibonn.util.HttpUtils;
 
 import java.io.IOException;
@@ -170,7 +167,7 @@ public class MainActivity extends ActionBarActivity {
                 enterChatTab(records.get(v.getParent()));
                 break;
             case R.id.statusBtn:
-                Toast.makeText(this, records.get(v.getParent()).toString(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, records.get(v.getParent()).info(), Toast.LENGTH_LONG).show();
                 break;
 
             // chat tab
@@ -378,7 +375,7 @@ public class MainActivity extends ActionBarActivity {
         toSendMsgView = (EditText) findViewById(R.id.toSendMsgView);
     }
 
-    private void addRecord(PincheRecord pincheRecord, int status, boolean addToDB) {
+    private View addRecord(PincheRecord pincheRecord, int status, boolean addToDB) {
         View record = LayoutInflater.from(this).inflate(R.layout.record_layout, null);
         ((TextView) record.findViewById(R.id.routeTextView)).setText(pincheRecord.toString());
         TextView statusView = (TextView) record.findViewById(R.id.statusTextView);
@@ -400,12 +397,37 @@ public class MainActivity extends ActionBarActivity {
         records.put(record, pincheRecord);
         recordLayout.addView(record);
         if (addToDB) {
-            db.execSQL("INSERT INTO record (otherUser , startAddr, arriveAddr, startTime, endTime, otherUserId) " +
-                            "VALUES ( ?, ?, ?, ?, ?, ? )",
+            db.execSQL("INSERT INTO record (otherUser , startAddr, arriveAddr, startTime, endTime, otherUserId, status) " +
+                            "VALUES ( ?, ?, ?, ?, ?, ?, ? )",
                     new Object[]{pincheRecord.getOtherUser(), pincheRecord.getStartAddress(), pincheRecord.getArriveAddress(),
-                            pincheRecord.getStartTime(), pincheRecord.getEndTime(), pincheRecord.getOtherUserId()}
+                            pincheRecord.getStartTime(), pincheRecord.getEndTime(), pincheRecord.getOtherUserId(), status}
             );
         }
+        return record;
+    }
+
+    private void updateRecord(PincheRecord record, View recordView, int status) {
+        TextView statusView = (TextView) recordView.findViewById(R.id.statusTextView);
+        switch (status) {
+            case STATUS_ING:
+                statusView.setBackgroundDrawable(getResources().getDrawable(R.drawable.status_ing));
+                statusView.setText("匹配中");
+                break;
+            case STATUS_SUCCESS:
+                statusView.setBackgroundDrawable(getResources().getDrawable(R.drawable.status_success));
+                statusView.setText("已匹配");
+                break;
+            case STATUS_FAIL:
+                statusView.setBackgroundDrawable(getResources().getDrawable(R.drawable.status_fail));
+                statusView.setText("已超时");
+                break;
+            default:
+        }
+        db.execSQL("UPDATE record SET status = ? WHERE startAddr = '?' AND arriveAddr = '?' AND otherUserId = '?' AND " +
+                        "startTime = '?' AND endTime = '?'",
+                new Object[]{status, record.getStartAddress(), record.getArriveAddress(),
+                        record.getOtherUserId(), record.getStartTime(), record.getEndTime()}
+        );
     }
 
     private void addFrequentAddress(String address, boolean addToDB) {
@@ -541,13 +563,34 @@ public class MainActivity extends ActionBarActivity {
         pool.execute(new Runnable() {
             @Override
             public void run() {
-                if (findMatch(startAddr, arriveAddr, startDate, startTime, endDate, endTime, man)) {
-                    handler.sendEmptyMessage(MATCH_SUCCESS);
-                    return;
-                }
                 try {
                     String res = HttpUtils.post(getString(R.string.submit_url), postData);
-                    // TODO
+                    if (res.startsWith("<pre>")) {
+                        res = res.substring(5);
+                    }
+                    if (res.endsWith("</pre>")) {
+                        res = res.substring(0, res.length() - 6);
+                    }
+                    Gson gson = new Gson();
+                    SubmitResult submitResult = gson.fromJson(res, SubmitResult.class);
+                    PincheRecord record = new PincheRecord();
+                    record.fromSubmitResult(submitResult);
+                    final View recordView = addRecord(record, STATUS_ING, true);
+                    pool.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            boolean findMatch = false;
+                            while (!findMatch) {
+                                try {
+                                    Thread.sleep(60000);
+                                    findMatch = findMatch(startAddr, arriveAddr, startDate, startTime, endDate, endTime, man, recordView);
+                                } catch (Exception e) {
+                                }
+                                ;
+                            }
+                            handler.sendEmptyMessage(MATCH_SUCCESS);
+                        }
+                    });
                 } catch (IOException e) {
                     e.printStackTrace();
                     handler.sendEmptyMessage(NETWORK_ERROR);
@@ -558,7 +601,7 @@ public class MainActivity extends ActionBarActivity {
 
     private boolean findMatch(String startAddr, String arriveAddr,
                               String startDate, String startTime,
-                              String endDate, String endTime, int man) {
+                              String endDate, String endTime, int man, View recordView) {
         final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s %s&lasttime=%s %s",
                 startAddr, arriveAddr, self.getUserid(), man, startDate, startTime, endDate, endTime);
         try {
@@ -569,12 +612,12 @@ public class MainActivity extends ActionBarActivity {
             Gson gson = new Gson();
             List<MatchResult> matchResults = gson.fromJson(res, new TypeToken<List<MatchResult>>() {
             }.getType());
-            if (matchResults.size() >= 0) {
+            if (matchResults.size() <= 0) {
                 return false;
             }
             PincheRecord pincheRecord = new PincheRecord();
             pincheRecord.fromMatchResult(matchResults.get(0));
-            addRecord(pincheRecord, STATUS_SUCCESS, true);
+            updateRecord(pincheRecord, recordView, STATUS_SUCCESS);
             return true;
         } catch (IOException e) {
             e.printStackTrace();
@@ -616,6 +659,10 @@ public class MainActivity extends ActionBarActivity {
                 while (true) {
                     try {
                         String res = HttpUtils.post(postUrl, postData, 60000, charset);
+                        if (res.equals("0")) {
+                            Thread.sleep(60000);
+                            continue;
+                        }
                         List<UserMessage> messages = gson.fromJson(res, new TypeToken<List<UserMessage>>() {
                         }.getType());
                         if (messages.size() <= 0) {
@@ -630,7 +677,14 @@ public class MainActivity extends ActionBarActivity {
                             }
                             msgList.add(um);
                         }
-                        handler.sendEmptyMessage(NEW_MESSAGE);
+                        if (tabHost.getCurrentTabTag().equals("chat")) {
+                            for (UserMessage um : MainActivity.this.messages.get(otherId)) {
+                                chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
+                            }
+                            MainActivity.this.messages.get(otherId).clear();
+                        } else {
+                            handler.sendEmptyMessage(NEW_MESSAGE);
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (InterruptedException e) {

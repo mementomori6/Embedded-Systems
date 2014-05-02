@@ -68,15 +68,20 @@ public class PincheRecord {
         setEndTime(result.getLasttime());
     }
 
+    public void fromSubmitResult(SubmitResult result) {
+        setStartAddress(result.getSrc());
+        setArriveAddress(result.getDes());
+        setStartTime(result.getTime());
+        setEndTime(result.getLasttime());
+    }
+
     @Override
     public String toString() {
-        // TODO format
-        return "PincheRecord{" +
-                "otherUser=" + otherUser +
-                ", startAddress='" + startAddress + '\'' +
-                ", arriveAddress='" + arriveAddress + '\'' +
-                ", startTime='" + startTime + '\'' +
-                ", endTime='" + endTime +
-                '}';
+        return String.format("%s到%s", startAddress, arriveAddress);
+    }
+
+    public String info() {
+        return String.format("用户：%s\n起点：%s\n终点：%s\n开始时间：%s\n结束时间：%s",
+                otherUserId, startAddress, arriveAddress, startTime, endTime);
     }
 }
