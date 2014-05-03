@@ -460,7 +460,7 @@ public class MainActivity extends ActionBarActivity {
             for (UserMessage um : userMessages) {
                 chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
             }
-            messages.get(otherId).clear();
+            userMessages.clear();
         }
         setCurrentTab(1, chatTab, 1);
     }
@@ -590,7 +590,6 @@ public class MainActivity extends ActionBarActivity {
                                     Thread.sleep(60000);
                                 } catch (Exception e) {
                                 }
-                                ;
                             }
                             handler.sendEmptyMessage(MATCH_SUCCESS);
                         }
@@ -682,10 +681,14 @@ public class MainActivity extends ActionBarActivity {
                             msgList.add(um);
                         }
                         if (tabHost.getCurrentTabTag().equals("chat")) {
-                            for (UserMessage um : MainActivity.this.messages.get(otherId)) {
+                            List<UserMessage> ums = MainActivity.this.messages.get(otherId);
+                            if (ums == null) {
+                                continue;
+                            }
+                            for (UserMessage um : ums) {
                                 chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
                             }
-                            MainActivity.this.messages.get(otherId).clear();
+                            ums.clear();
                         } else {
                             handler.sendEmptyMessage(NEW_MESSAGE);
                         }
