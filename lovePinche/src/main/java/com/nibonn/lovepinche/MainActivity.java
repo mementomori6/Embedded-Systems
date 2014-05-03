@@ -100,6 +100,7 @@ public class MainActivity extends ActionBarActivity {
         findNeededView();
         resetFindCar();
         startReceiveMsg();
+        debug();
     }
 
 
@@ -423,8 +424,8 @@ public class MainActivity extends ActionBarActivity {
                 break;
             default:
         }
-        db.execSQL("UPDATE record SET status = ? WHERE startAddr = '?' AND arriveAddr = '?' AND otherUserId = '?' AND " +
-                        "startTime = '?' AND endTime = '?'",
+        db.execSQL("UPDATE record SET status = ? WHERE startAddr = ? AND arriveAddr = ? AND otherUserId = ? AND " +
+                        "startTime = ? AND endTime = ?",
                 new Object[]{status, record.getStartAddress(), record.getArriveAddress(),
                         record.getOtherUserId(), record.getStartTime(), record.getEndTime()}
         );
@@ -454,10 +455,13 @@ public class MainActivity extends ActionBarActivity {
         chatTitle.setText(String.format("正在和用户%s交流", record.getOtherUser()));
         chatContent.setText("");
         otherId = record.getOtherUserId();
-        for (UserMessage um : messages.get(otherId)) {
-            chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
+        List<UserMessage> userMessages = messages.get(otherId);
+        if (userMessages != null) {
+            for (UserMessage um : userMessages) {
+                chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
+            }
+            messages.get(otherId).clear();
         }
-        messages.get(otherId).clear();
         setCurrentTab(1, chatTab, 1);
     }
 
@@ -582,8 +586,8 @@ public class MainActivity extends ActionBarActivity {
                             boolean findMatch = false;
                             while (!findMatch) {
                                 try {
-                                    Thread.sleep(60000);
                                     findMatch = findMatch(startAddr, arriveAddr, startDate, startTime, endDate, endTime, man, recordView);
+                                    Thread.sleep(60000);
                                 } catch (Exception e) {
                                 }
                                 ;
@@ -658,15 +662,15 @@ public class MainActivity extends ActionBarActivity {
                 Gson gson = new Gson();
                 while (true) {
                     try {
-                        String res = HttpUtils.post(postUrl, postData, 60000, charset);
+                        String res = HttpUtils.post(postUrl, postData, 5000, charset);
                         if (res.equals("0")) {
-                            Thread.sleep(60000);
+                            Thread.sleep(5000);
                             continue;
                         }
                         List<UserMessage> messages = gson.fromJson(res, new TypeToken<List<UserMessage>>() {
                         }.getType());
                         if (messages.size() <= 0) {
-                            Thread.sleep(60000);
+                            Thread.sleep(5000);
                             continue;
                         }
                         for (UserMessage um : messages) {
@@ -693,5 +697,27 @@ public class MainActivity extends ActionBarActivity {
                 }
             }
         });
+    }
+
+    private void debug() {
+        PincheRecord r = new PincheRecord();
+        r.setOtherUser("other");
+        r.setStartAddress("startaddr");
+        r.setArriveAddress("arriveaddr");
+        r.setStartTime("0000-00-00 00:00:00");
+        r.setEndTime("9999-99-99 99:99:99");
+        r.setOtherUserId("1234");
+        View v = addRecord(r, STATUS_ING, true);
+        updateRecord(r, v, STATUS_SUCCESS);
+        List<UserMessage> ums = new LinkedList<UserMessage>();
+        UserMessage um = new UserMessage();
+        um.setDate("1234-12-34 12:34:56");
+        um.setDesid("4321");
+        um.setSrcid("1234");
+        um.setMessage("hello");
+        um.setMessageid("id");
+        um.setRead("1");
+        ums.add(um);
+        messages.put(r.getOtherUserId(), ums);
     }
 }
