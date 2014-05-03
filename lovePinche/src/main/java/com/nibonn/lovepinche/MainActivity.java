@@ -424,10 +424,10 @@ public class MainActivity extends ActionBarActivity {
                 break;
             default:
         }
-        db.execSQL("UPDATE record SET status = ? WHERE startAddr = ? AND arriveAddr = ? AND otherUserId = ? AND " +
+        db.execSQL("UPDATE record SET status = ?, otherUserId = ?, otherUser = ? WHERE startAddr = ? AND arriveAddr = ? AND " +
                         "startTime = ? AND endTime = ?",
-                new Object[]{status, record.getStartAddress(), record.getArriveAddress(),
-                        record.getOtherUserId(), record.getStartTime(), record.getEndTime()}
+                new Object[]{status, record.getOtherUserId(), record.getOtherUser(), record.getStartAddress(), record.getArriveAddress(),
+                        record.getStartTime(), record.getEndTime()}
         );
     }
 
