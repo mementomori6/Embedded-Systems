@@ -30,7 +30,7 @@
             android:padding="10dp"
             android:text="用户名"
             android:textColor="#ffffff"
-            android:textSize="25dp"/>
+            android:textSize="18dp"/>
 
         <TextView
             android:id="@+id/textView6"
@@ -47,7 +47,7 @@
             android:padding="10dp"
             android:text="密码"
             android:textColor="#ffffff"
-            android:textSize="25dp"
+            android:textSize="18dp"
             />
 
         <EditText
@@ -59,7 +59,7 @@
             android:layout_marginLeft="25dp"
             android:layout_toRightOf="@+id/textView5"
             android:background="@drawable/input_bg"
-            android:textSize="25dp"/>
+            android:textSize="18dp"/>
 
         <Button
             android:id="@+id/loginBtn"
@@ -69,11 +69,11 @@
             android:layout_marginBottom="33dp"
             android:layout_marginRight="30dp"
             android:layout_toLeftOf="@+id/signUpBtn"
-            android:background="@drawable/button_bg"
+            android:background="@drawable/shadow_button"
             android:onClick="onClick"
             android:text="登陆"
             android:textColor="#ffffff"
-            android:textSize="25dp"/>
+            android:textSize="18dp"/>
 
         <Button
             android:id="@+id/signUpBtn"
@@ -82,11 +82,11 @@
             android:layout_alignBottom="@+id/loginBtn"
             android:layout_alignRight="@+id/unLoginView"
             android:layout_alignTop="@+id/loginBtn"
-            android:background="@drawable/button_bg"
+            android:background="@drawable/shadow_button"
             android:onClick="onClick"
             android:text="注册"
             android:textColor="#ffffff"
-            android:textSize="25dp"/>
+            android:textSize="18dp"/>
 
         <EditText
             android:id="@+id/pwLoginView"
@@ -101,7 +101,7 @@
             android:background="@drawable/input_bg"
             android:ems="10"
             android:inputType="textPassword"
-            android:textSize="25dp"/>
+            android:textSize="18dp"/>
 
         <ImageView
             android:id="@+id/imageView"

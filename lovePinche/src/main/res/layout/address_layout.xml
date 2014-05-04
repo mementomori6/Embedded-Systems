@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:background="@drawable/label_bg_main"
+        android:background="@drawable/shadow_button"
         android:gravity="center"
         android:onClick="onClick"
         android:paddingLeft="10dp"

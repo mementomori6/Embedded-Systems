@@ -4,18 +4,20 @@
     <item>
         <shape>
             <corners android:radius="10dp"/>
-            <gradient android:startColor="#000000"
-                      android:endColor="#777777"
-                      android:type="radial"
-                android:gradientRadius="3"/>
+            <gradient
+                android:startColor="#000000"
+                android:endColor="#777777"
+                android:type="radial"
+                android:gradientRadius="10"/>
         </shape>
     </item>
 
-    <item android:bottom="2dp"
-        android:right="2dp">
+    <item
+        android:bottom="3dp"
+        android:right="3dp">
         <shape>
             <corners android:radius="10dp"/>
-            <solid android:color="#00c0ff"/>
+            <solid android:color="#00ffff"/>
         </shape>
     </item>
 

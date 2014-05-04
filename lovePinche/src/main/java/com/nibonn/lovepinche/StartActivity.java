@@ -44,6 +44,7 @@ public class StartActivity extends ActionBarActivity {
                         Intent intent = new Intent(StartActivity.this, MainActivity.class);
                         intent.putExtras(msg.getData());
                         startActivity(intent);
+                        finish();
                         break;
                     case LOGIN_FAIL:
                         Toast.makeText(StartActivity.this, "username or password wrong!", Toast.LENGTH_SHORT).show();
@@ -51,16 +52,16 @@ public class StartActivity extends ActionBarActivity {
                     case NETWORK_ERROR:
                         Toast.makeText(StartActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
                         // TODO delete test
-                        intent = new Intent(StartActivity.this, MainActivity.class);
-                        Bundle bundle = new Bundle();
-                        bundle.putString("username", "test");
-                        bundle.putString("password", "newpassword");
-                        bundle.putString("userid", "49");
-                        bundle.putString("realname", "haha");
-                        bundle.putString("phonenumber", "12345");
-                        bundle.putString("idcard", "324124");
-                        intent.putExtras(bundle);
-                        startActivity(intent);
+//                        intent = new Intent(StartActivity.this, MainActivity.class);
+//                        Bundle bundle = new Bundle();
+//                        bundle.putString("username", "test");
+//                        bundle.putString("password", "newpassword");
+//                        bundle.putString("userid", "49");
+//                        bundle.putString("realname", "haha");
+//                        bundle.putString("phonenumber", "12345");
+//                        bundle.putString("idcard", "324124");
+//                        intent.putExtras(bundle);
+//                        startActivity(intent);
                     default:
                 }
             }
@@ -129,7 +130,8 @@ public class StartActivity extends ActionBarActivity {
                 return;
             }
             Gson gson = new Gson();
-            List<User> users = gson.fromJson(res, new TypeToken<List<User>>(){}.getType());
+            List<User> users = gson.fromJson(res, new TypeToken<List<User>>() {
+            }.getType());
             User user = users.get(0);
             if (user != null && user.getUsername().equals(un) && user.getPassword().equals(pw)) {
                 Message msg = new Message();

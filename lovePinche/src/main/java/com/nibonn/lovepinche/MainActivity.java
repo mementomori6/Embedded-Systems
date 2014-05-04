@@ -43,6 +43,8 @@ public class MainActivity extends ActionBarActivity {
     private static final int SEND_MSG_SUCCESS = 5;
     private static final int SEND_MSG_FAIL = 6;
     private static final int NEW_MESSAGE = 7;
+    private static final int SUBMIT_SUCCESS = 8;
+    private static final int INSTANT_MSG = 9;
 
     private TabHost tabHost;
     private TabHost.TabSpec findCarTab;
@@ -100,7 +102,7 @@ public class MainActivity extends ActionBarActivity {
         findNeededView();
         resetFindCar();
         startReceiveMsg();
-        debug();
+//        debug();
     }
 
 
@@ -193,6 +195,12 @@ public class MainActivity extends ActionBarActivity {
             case R.id.changePWBtn:
                 Toast.makeText(this, "connecting...", Toast.LENGTH_SHORT).show();
                 changePassword();
+                break;
+            case R.id.helpSettingBtn:
+                showMessage("help", "程序员不知道要写什么");
+                break;
+            case R.id.aboutSettingBtn:
+                showMessage("about", "程序员不知道要写什么");
                 break;
 
             // frequent address tab
@@ -345,6 +353,23 @@ public class MainActivity extends ActionBarActivity {
                         break;
                     case MATCH_SUCCESS:
                         Toast.makeText(MainActivity.this, "匹配成功", Toast.LENGTH_SHORT).show();
+                        PincheRecord record = new PincheRecord();
+                        record.fromBundle(msg.getData());
+                        for (View v : records.keySet()) {
+                            if (records.get(v).equals(record)) {
+                                updateRecord(record, v, STATUS_SUCCESS);
+                                break;
+                            }
+                        }
+                        break;
+                    case SEND_MSG_SUCCESS:
+                        Bundle data = msg.getData();
+                        chatContent.append(String.format("我 %s\n\t%s\n\n", data.getString("time"), data.getString("msg")));
+                        toSendMsgView.setText("");
+                        break;
+                    case INSTANT_MSG:
+                        data = msg.getData();
+                        chatContent.append(String.format("%s %s\n\t%s\n\n", data.getString("id"), data.getString("time"), data.getString("msg")));
                         break;
                     case SEND_MSG_FAIL:
                         Toast.makeText(MainActivity.this, "发送信息失败", Toast.LENGTH_SHORT).show();
@@ -354,6 +379,13 @@ public class MainActivity extends ActionBarActivity {
                         break;
                     case NETWORK_ERROR:
                         Toast.makeText(MainActivity.this, "fail to connect", Toast.LENGTH_SHORT).show();
+                        break;
+                    case SUBMIT_SUCCESS:
+                        record = new PincheRecord();
+                        record.fromBundle(msg.getData());
+                        addRecord(record, STATUS_ING, true);
+                        findMatch(record.getStartAddress(), record.getArriveAddress(), record.getStartTime(),
+                                record.getEndTime(), msg.getData().getInt("man"), record);
                         break;
                     default:
                 }
@@ -568,6 +600,7 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void run() {
                 try {
+                    System.out.println("submit: " + postData);
                     String res = HttpUtils.post(getString(R.string.submit_url), postData);
                     if (res.startsWith("<pre>")) {
                         res = res.substring(5);
@@ -577,23 +610,20 @@ public class MainActivity extends ActionBarActivity {
                     }
                     Gson gson = new Gson();
                     SubmitResult submitResult = gson.fromJson(res, SubmitResult.class);
-                    PincheRecord record = new PincheRecord();
+                    final PincheRecord record = new PincheRecord();
                     record.fromSubmitResult(submitResult);
-                    final View recordView = addRecord(record, STATUS_ING, true);
-                    pool.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            boolean findMatch = false;
-                            while (!findMatch) {
-                                try {
-                                    findMatch = findMatch(startAddr, arriveAddr, startDate, startTime, endDate, endTime, man, recordView);
-                                    Thread.sleep(60000);
-                                } catch (Exception e) {
-                                }
-                            }
-                            handler.sendEmptyMessage(MATCH_SUCCESS);
-                        }
-                    });
+                    Bundle data = new Bundle();
+                    data.putString("startAddr", record.getStartAddress());
+                    data.putString("arriveAddr", record.getArriveAddress());
+                    data.putString("startTime", record.getStartTime());
+                    data.putString("endTime", record.getEndTime());
+                    data.putString("otherUser", record.getOtherUser());
+                    data.putString("otherUserId", record.getOtherUserId());
+                    data.putInt("man", man);
+                    Message msg = new Message();
+                    msg.what = SUBMIT_SUCCESS;
+                    msg.setData(data);
+                    handler.sendMessage(msg);
                 } catch (IOException e) {
                     e.printStackTrace();
                     handler.sendEmptyMessage(NETWORK_ERROR);
@@ -602,30 +632,53 @@ public class MainActivity extends ActionBarActivity {
         });
     }
 
-    private boolean findMatch(String startAddr, String arriveAddr,
-                              String startDate, String startTime,
-                              String endDate, String endTime, int man, View recordView) {
-        final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s %s&lasttime=%s %s",
-                startAddr, arriveAddr, self.getUserid(), man, startDate, startTime, endDate, endTime);
-        try {
-            String res = HttpUtils.post(getString(R.string.match_url), postData);
-            if (res.equals("0")) {
-                return false;
+    private void findMatch(String startAddr, String arriveAddr,
+                           String startTime, String endTime, int man, final PincheRecord record) {
+        final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s&lasttime=%s",
+                startAddr, arriveAddr, self.getUserid(), man, startTime, endTime);
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                boolean findMatch = false;
+                while (!findMatch) {
+                    try {
+                        System.out.println("match post: " + postData);
+                        String res = HttpUtils.post(getString(R.string.match_url), postData);
+                        System.out.println("match: " + res);
+                        if (res.equals("0")) {
+                            Thread.sleep(5000);
+                            continue;
+                        }
+                        Gson gson = new Gson();
+                        List<MatchResult> matchResults = gson.fromJson(res, new TypeToken<List<MatchResult>>() {
+                        }.getType());
+                        if (matchResults.size() <= 0) {
+                            Thread.sleep(5000);
+                            continue;
+                        }
+                        record.setOtherUserId(matchResults.get(0).getUserid());
+                        findMatch = true;
+                        Message msg = new Message();
+                        msg.what = MATCH_SUCCESS;
+                        Bundle data = new Bundle();
+                        data.putString("startAddr", record.getStartAddress());
+                        data.putString("arriveAddr", record.getArriveAddress());
+                        data.putString("startTime", record.getStartTime());
+                        data.putString("endTime", record.getEndTime());
+                        data.putString("otherUser", record.getOtherUser());
+                        data.putString("otherUserId", record.getOtherUserId());
+                        msg.setData(data);
+                        handler.sendMessage(msg);
+                        return;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
-            Gson gson = new Gson();
-            List<MatchResult> matchResults = gson.fromJson(res, new TypeToken<List<MatchResult>>() {
-            }.getType());
-            if (matchResults.size() <= 0) {
-                return false;
-            }
-            PincheRecord pincheRecord = new PincheRecord();
-            pincheRecord.fromMatchResult(matchResults.get(0));
-            updateRecord(pincheRecord, recordView, STATUS_SUCCESS);
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return false;
+        });
+
     }
 
     private void sendMessage(final String msg) {
@@ -637,9 +690,13 @@ public class MainActivity extends ActionBarActivity {
                 try {
                     String res = HttpUtils.post(getString(R.string.send_msg_url), postData);
                     if (res.equals(msg)) {
-                        handler.sendEmptyMessage(SEND_MSG_SUCCESS);
-                        chatContent.append(String.format("我 %s\n\t%s\n\n", date, msg));
-                        toSendMsgView.setText("");
+                        Message message = new Message();
+                        message.what = SEND_MSG_SUCCESS;
+                        Bundle data = new Bundle();
+                        data.putString("msg", msg);
+                        data.putString("time", date);
+                        message.setData(data);
+                        handler.sendMessage(message);
                     } else {
                         handler.sendEmptyMessage(SEND_MSG_FAIL);
                     }
@@ -662,6 +719,7 @@ public class MainActivity extends ActionBarActivity {
                 while (true) {
                     try {
                         String res = HttpUtils.post(postUrl, postData, 5000, charset);
+                        System.out.println("msg: " + res);
                         if (res.equals("0")) {
                             Thread.sleep(5000);
                             continue;
@@ -686,7 +744,14 @@ public class MainActivity extends ActionBarActivity {
                                 continue;
                             }
                             for (UserMessage um : ums) {
-                                chatContent.append(String.format("%s %s\n\t%s\n\n", otherId, um.getDate(), um.getMessage()));
+                                Bundle data = new Bundle();
+                                data.putString("id", otherId);
+                                data.putString("time", um.getDate());
+                                data.putString("msg", um.getMessage());
+                                Message message = new Message();
+                                message.setData(data);
+                                message.what = INSTANT_MSG;
+                                handler.sendMessage(message);
                             }
                             ums.clear();
                         } else {
@@ -700,6 +765,16 @@ public class MainActivity extends ActionBarActivity {
                 }
             }
         });
+    }
+
+    private void showMessage(String title, String msg) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title);
+        final TextView view = new TextView(this);
+        view.setText(msg);
+        builder.setView(view);
+        builder.setPositiveButton("ok", null);
+        builder.show();
     }
 
     private void debug() {
@@ -722,5 +797,11 @@ public class MainActivity extends ActionBarActivity {
         um.setRead("1");
         ums.add(um);
         messages.put(r.getOtherUserId(), ums);
+        startAddressView.setText("上海交通大学闵行校区");
+        arriveAddressView.setText("复旦大学东门");
+        startDateView.setText("2014-05-01");
+        startTimeView.setText("00:00:00");
+        endDateView.setText("2015-05-19");
+        endTimeView.setText("00:00:00");
     }
 }
