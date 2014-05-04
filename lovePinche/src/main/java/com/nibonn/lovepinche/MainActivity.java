@@ -384,7 +384,7 @@ public class MainActivity extends ActionBarActivity {
                         record = new PincheRecord();
                         record.fromBundle(msg.getData());
                         addRecord(record, STATUS_ING, true);
-                        findMatch(record.getStartAddress(), record.getArriveAddress(), record.getStartTime(),
+                        findMatch(msg.getData().getString("srcid"), msg.getData().getString("desid"), record.getStartTime(),
                                 record.getEndTime(), msg.getData().getInt("man"), record);
                         break;
                     default:
@@ -619,6 +619,8 @@ public class MainActivity extends ActionBarActivity {
                     data.putString("endTime", record.getEndTime());
                     data.putString("otherUser", record.getOtherUser());
                     data.putString("otherUserId", record.getOtherUserId());
+                    data.putString("srcid", submitResult.getSrcid());
+                    data.putString("desid", submitResult.getDesid());
                     data.putInt("man", man);
                     Message msg = new Message();
                     msg.what = SUBMIT_SUCCESS;
@@ -632,10 +634,10 @@ public class MainActivity extends ActionBarActivity {
         });
     }
 
-    private void findMatch(String startAddr, String arriveAddr,
+    private void findMatch(String startId, String arriveId,
                            String startTime, String endTime, int man, final PincheRecord record) {
-        final String postData = String.format("src=%s&des=%s&userid=%s&peoplenumber=%d&time=%s&lasttime=%s",
-                startAddr, arriveAddr, self.getUserid(), man, startTime, endTime);
+        final String postData = String.format("srcid=%s&desid=%s&userid=%s&peoplenumber=%d&time=%s&lasttime=%s",
+                startId, arriveId, self.getUserid(), man, startTime, endTime);
         pool.execute(new Runnable() {
             @Override
             public void run() {
