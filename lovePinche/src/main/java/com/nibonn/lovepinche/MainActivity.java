@@ -197,10 +197,10 @@ public class MainActivity extends ActionBarActivity {
                 changePassword();
                 break;
             case R.id.helpSettingBtn:
-                showMessage("help", "程序员不知道要写什么");
+                showMessage("有问题请联系我们", "爱拼车小组/手机：18817554328；email:387775245@qq.com");
                 break;
             case R.id.aboutSettingBtn:
-                showMessage("about", "程序员不知道要写什么");
+                showMessage("关于", "爱拼车小组 版权所有/版本：1.0/All Rights Reserved.");
                 break;
 
             // frequent address tab
@@ -784,14 +784,14 @@ public class MainActivity extends ActionBarActivity {
         r.setArriveAddress("arriveaddr");
         r.setStartTime("0000-00-00 00:00:00");
         r.setEndTime("9999-99-99 99:99:99");
-        r.setOtherUserId("1234");
+        r.setOtherUserId("49");
         View v = addRecord(r, STATUS_ING, true);
         updateRecord(r, v, STATUS_SUCCESS);
         List<UserMessage> ums = new LinkedList<UserMessage>();
         UserMessage um = new UserMessage();
         um.setDate("1234-12-34 12:34:56");
-        um.setDesid("4321");
-        um.setSrcid("1234");
+        um.setDesid("49");
+        um.setSrcid("49");
         um.setMessage("hello");
         um.setMessageid("id");
         um.setRead("1");
