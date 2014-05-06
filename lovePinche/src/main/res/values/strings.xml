@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">爱拼车</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_sign_up">SignUpActivity</string>
+    <string name="login_url">http://59.78.16.33/ES/index.php/newlogin</string>
+    <string name="sign_up_url">http://59.78.16.33/ES/index.php/newsignup</string>
+    <string name="check_username_url">http://59.78.16.33/ES/index.php/checkuser</string>
+    <string name="change_info_url">http://59.78.16.33/ES/index.php/update</string>
+    <string name="submit_url">http://59.78.16.33/ES/index.php/baidumap</string>
+    <string name="match_url">http://59.78.16.33/ES/index.php/request</string>
+    <string name="receive_url">http://59.78.16.33/ES/index.php/sendmessage</string>
+    <string name="send_msg_url">http://59.78.16.33/ES/index.php/receivemessage</string>
+    <string name="charset">UTF-8</string>
+    <string name="title_activity_main">MainActivity</string>
+
+</resources>
