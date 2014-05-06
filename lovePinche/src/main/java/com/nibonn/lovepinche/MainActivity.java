@@ -102,7 +102,6 @@ public class MainActivity extends ActionBarActivity {
         findNeededView();
         resetFindCar();
         startReceiveMsg();
-//        debug();
     }
 
 
@@ -779,31 +778,4 @@ public class MainActivity extends ActionBarActivity {
         builder.show();
     }
 
-    private void debug() {
-        PincheRecord r = new PincheRecord();
-        r.setOtherUser("other");
-        r.setStartAddress("startaddr");
-        r.setArriveAddress("arriveaddr");
-        r.setStartTime("0000-00-00 00:00:00");
-        r.setEndTime("9999-99-99 99:99:99");
-        r.setOtherUserId("49");
-        View v = addRecord(r, STATUS_ING, true);
-        updateRecord(r, v, STATUS_SUCCESS);
-        List<UserMessage> ums = new LinkedList<UserMessage>();
-        UserMessage um = new UserMessage();
-        um.setDate("1234-12-34 12:34:56");
-        um.setDesid("49");
-        um.setSrcid("49");
-        um.setMessage("hello");
-        um.setMessageid("id");
-        um.setRead("1");
-        ums.add(um);
-        messages.put(r.getOtherUserId(), ums);
-        startAddressView.setText("上海交通大学闵行校区");
-        arriveAddressView.setText("复旦大学东门");
-        startDateView.setText("2014-05-01");
-        startTimeView.setText("00:00:00");
-        endDateView.setText("2015-05-19");
-        endTimeView.setText("00:00:00");
-    }
 }
